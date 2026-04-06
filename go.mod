@@ -1,7 +1,6 @@
 module github.com/henrygd/beszel
 
-go 1.26.1
-
+go 1.23
 require (
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/coreos/go-systemd/v22 v22.7.0

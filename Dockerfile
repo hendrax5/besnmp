@@ -7,7 +7,7 @@ COPY internal/site ./internal/site
 RUN cd internal/site && npm run build
 
 # Stage 2: Build the backend (Golang)
-FROM golang:1.22-alpine AS backend
+FROM golang:alpine AS backend
 WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
