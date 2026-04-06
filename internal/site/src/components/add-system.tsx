@@ -2,7 +2,7 @@ import { t } from "@lingui/core/macro"
 import { Trans } from "@lingui/react/macro"
 import { useStore } from "@nanostores/react"
 import { getPagePath } from "@nanostores/router"
-import { ChevronDownIcon, ExternalLinkIcon } from "lucide-react"
+import { ChevronDownIcon, ExternalLinkIcon, SearchIcon, Loader2Icon } from "lucide-react"
 import { memo, useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import {
@@ -71,7 +71,10 @@ export const SystemDialog = ({ setOpen, system }: { setOpen: (open: boolean) => 
 	const isUnixSocket = hostValue.startsWith("/")
 	const [tab, setTab] = useBrowserStorage("as-tab", "docker")
 	const [token, setToken] = useState(system?.token ?? "")
-
+	const snmpRef = useRef<HTMLInputElement>(null)
+	const [isScanning, setIsScanning] = useState(false)
+	const [scanResults, setScanResults] = useState<{sysDescr: string, interfaces: string[]} | null>(null)
+	const [selectedInterfaces, setSelectedInterfaces] = useState<string[]>([])
 	useEffect(() => {
 		;(async () => {
 			// if no system, generate a new token
@@ -90,6 +93,48 @@ export const SystemDialog = ({ setOpen, system }: { setOpen: (open: boolean) => 
 			setToken(token)
 		})()
 	}, [system?.id, nextSystemToken])
+
+	async function handleScanSNMP() {
+		if (!snmpRef.current?.value) return
+		setIsScanning(true)
+		setScanResults(null)
+		try {
+			const val = snmpRef.current.value
+			const parts = val.split(":")
+			const target = parts[0] + ":" + (parts[1] || "")
+			const res = await pb.send(`/api/beszel/snmp/scan?target=${encodeURIComponent(target)}`, { method: "GET" })
+			setScanResults(res)
+			if (parts.length >= 3 && parts[2]) {
+				setSelectedInterfaces(parts[2].split(",").map(s => s.trim()))
+			} else {
+				setSelectedInterfaces([])
+			}
+		} catch (e) {
+			console.error("SNMP Scan failed", e)
+		} finally {
+			setIsScanning(false)
+		}
+	}
+
+	function handleInterfaceToggle(ifName: string) {
+		let newSelected = [...selectedInterfaces]
+		if (newSelected.includes(ifName)) {
+			newSelected = newSelected.filter(n => n !== ifName)
+		} else {
+			newSelected.push(ifName)
+		}
+		setSelectedInterfaces(newSelected)
+		
+		const parts = snmpRef.current!.value.split(":")
+		if (parts.length >= 2) {
+			const base = parts[0] + ":" + parts[1]
+			if (newSelected.length > 0) {
+				snmpRef.current!.value = base + ":" + newSelected.join(",")
+			} else {
+				snmpRef.current!.value = base
+			}
+		}
+	}
 
 	async function handleSubmit(e: SubmitEvent) {
 		e.preventDefault()
@@ -212,6 +257,38 @@ export const SystemDialog = ({ setOpen, system }: { setOpen: (open: boolean) => 
 							<Trans>Token</Trans>
 						</Label>
 						<InputCopy value={token} id="tkn" name="tkn" />
+						<Label htmlFor="snmp_targets" className="xs:text-end relative top-2">
+							<Trans>SNMP Targets</Trans>
+						</Label>
+						<div className="flex gap-2 w-full">
+							<Input
+								ref={snmpRef}
+								id="snmp_targets"
+								name="snmp_targets"
+								defaultValue={(system as any)?.snmp_targets}
+								placeholder="192.168.1.1:public[:ether1,ether2]"
+								className="flex-1"
+							/>
+							<Button type="button" variant="outline" size="icon" onClick={handleScanSNMP} disabled={isScanning}>
+								{isScanning ? <Loader2Icon className="h-4 w-4 animate-spin" /> : <SearchIcon className="h-4 w-4" />}
+							</Button>
+						</div>
+						{scanResults && (
+							<div className="col-span-full xs:col-start-2 bg-muted/50 p-3 mt-1 rounded-md max-h-48 overflow-y-auto w-full border">
+								<p className="text-xs text-muted-foreground mb-2 break-all">{scanResults.sysDescr}</p>
+								<div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+									{scanResults.interfaces.map(ifName => (
+										<label key={ifName} className="flex items-center gap-2 cursor-pointer text-sm hover:text-primary transition-colors">
+											<input type="checkbox" checked={selectedInterfaces.includes(ifName)} onChange={() => handleInterfaceToggle(ifName)} className="rounded" />
+											<span className="truncate" title={ifName}>{ifName}</span>
+										</label>
+									))}
+								</div>
+							</div>
+						)}
+						<p className="text-muted-foreground text-sm col-span-full xs:col-start-2 mt-1">
+							<Trans>Format: IP:Community[:Interface1,Interface2]. (e.g. 192.168.1.1:public or 10.0.0.1:public:ether1,ether2)</Trans>
+						</p>
 					</div>
 					<DialogFooter className="flex justify-end gap-x-2 gap-y-3 flex-col mt-5">
 						{/* Docker */}

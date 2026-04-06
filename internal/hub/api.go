@@ -133,6 +133,8 @@ func (h *Hub) registerApiRoutes(se *core.ServeEvent) error {
 		// get container info
 		apiAuth.GET("/containers/info", h.getContainerInfo)
 	}
+	// snmp scan route
+	apiAuth.GET("/snmp/scan", h.scanSNMPHandler)
 	return nil
 }
 
@@ -382,9 +384,21 @@ func (h *Hub) refreshSmartData(e *core.RequestEvent) error {
 		return e.NotFoundError("", nil)
 	}
 
-	if err := system.FetchAndSaveSmartDevices(); err != nil {
-		return e.InternalServerError("", err)
-	}
-
 	return e.JSON(http.StatusOK, map[string]string{"status": "ok"})
 }
+
+// scanSNMPHandler handles GET /api/beszel/snmp/scan requests
+func (h *Hub) scanSNMPHandler(e *core.RequestEvent) error {
+	snmpTargets := e.Request.URL.Query().Get("target")
+	if snmpTargets == "" {
+		return e.BadRequestError("Device target is required (e.g. 192.168.1.1:public)", nil)
+	}
+
+	res, err := systems.ScanSNMPInterfaces(snmpTargets)
+	if err != nil {
+		return e.InternalServerError("SNMP scan failed", err)
+	}
+
+	return e.JSON(http.StatusOK, res)
+}
+

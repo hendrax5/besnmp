@@ -42,6 +42,7 @@ require (
 	github.com/godbus/dbus/v5 v5.2.2 // indirect
 	github.com/golang-jwt/jwt/v5 v5.3.1 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
+	github.com/gosnmp/gosnmp v1.43.2 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/klauspost/compress v1.18.5 // indirect
 	github.com/lufia/plan9stats v0.0.0-20260324052639-156f7da3f749 // indirect

@@ -28,6 +28,7 @@ export interface SystemRecord extends RecordModel {
 	status: "up" | "down" | "paused" | "pending"
 	port: string
 	info: SystemInfo
+	snmp_targets?: string
 	v: string
 	updated: string
 }

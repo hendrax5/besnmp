@@ -49,12 +49,15 @@ type System struct {
 	detailsFetched atomic.Bool             // True if static system details have been fetched and saved
 	smartFetching  atomic.Bool             // True if SMART devices are currently being fetched
 	smartInterval  time.Duration           // Interval for periodic SMART data updates
+	snmpNetDeltas  map[string][2]uint64    // SNMP Interface Traffic Trackers (IfIndex -> [InOctets, OutOctets])
+	snmpLastPoll   time.Time               // Last SNMP poll time
 }
 
 func (sm *SystemManager) NewSystem(systemId string) *System {
 	system := &System{
-		Id:   systemId,
-		data: &system.CombinedData{},
+		Id:            systemId,
+		data:          &system.CombinedData{},
+		snmpNetDeltas: make(map[string][2]uint64),
 	}
 	system.ctx, system.cancel = system.getContext()
 	return system
@@ -129,7 +132,20 @@ func (sys *System) update() error {
 		options.IncludeDetails = true
 	}
 
-	data, err := sys.fetchDataFromAgent(options)
+	var data *system.CombinedData
+	var err error
+
+	snmpTargets := ""
+	if record, errRecord := sys.getRecord(sys.manager.hub); errRecord == nil {
+		snmpTargets = record.GetString("snmp_targets")
+	}
+
+	if snmpTargets != "" {
+		data, err = sys.fetchDataViaSNMP()
+	} else {
+		data, err = sys.fetchDataFromAgent(options)
+	}
+
 	if err != nil {
 		return err
 	}

@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  hub:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: beszel-hub
+    restart: unless-stopped
+    ports:
+      - "8090:8090"
+    volumes:
+      - ./beszel_data:/beszel_data
+    environment:
+      - TZ=Asia/Jakarta

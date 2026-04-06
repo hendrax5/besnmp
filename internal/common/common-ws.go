@@ -61,6 +61,7 @@ type FingerprintResponse struct {
 type DataRequestOptions struct {
 	CacheTimeMs    uint16 `cbor:"0,keyasint"`
 	IncludeDetails bool   `cbor:"1,keyasint"`
+	SnmpTargets    string `cbor:"2,keyasint,omitempty"`
 }
 
 type ContainerLogsRequest struct {
