@@ -102,7 +102,7 @@ func (sys *System) fetchDataViaSNMP() (*system.CombinedData, error) {
 		parts := strings.Split(v.Name, ".")
 		idx := parts[len(parts)-1]
 		if b, ok := v.Value.([]byte); ok {
-			nameMap[idx] = string(b)
+			nameMap[idx] = strings.TrimSpace(strings.TrimRight(string(b), "\x00"))
 		} else {
 			nameMap[idx] = fmt.Sprintf("if%s", idx)
 		}
@@ -235,7 +235,7 @@ func ScanSNMPInterfaces(snmpTarget string) (*SNMPScanResult, error) {
 
 	for _, v := range names {
 		if b, ok := v.Value.([]byte); ok {
-			result.Interfaces = append(result.Interfaces, string(b))
+			result.Interfaces = append(result.Interfaces, strings.TrimSpace(strings.TrimRight(string(b), "\x00")))
 		}
 	}
 
