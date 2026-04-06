@@ -17,15 +17,34 @@ if [ -z "$DOMAIN" ]; then
     exit 1
 fi
 
-echo "[1/4] Installing necessary packages (Docker, docker-compose, caddy)..."
-apt-get update -y
-apt-get install -y apt-transport-https ca-certificates curl software-properties-common debian-keyring debian-archive-keyring
+# Detect package manager
+if command -v apt-get &> /dev/null; then
+    PKG_MGR="apt-get"
+elif command -v dnf &> /dev/null; then
+    PKG_MGR="dnf"
+elif command -v yum &> /dev/null; then
+    PKG_MGR="yum"
+else
+    echo "Error: Supported package manager (apt/dnf/yum) not found."
+    exit 1
+fi
+
+echo "[1/4] Installing base dependencies..."
+if [ "$PKG_MGR" = "apt-get" ]; then
+    $PKG_MGR update -y
+    $PKG_MGR install -y apt-transport-https ca-certificates curl software-properties-common debian-keyring debian-archive-keyring
+else
+    $PKG_MGR install -y epel-release || true
+    $PKG_MGR install -y curl ca-certificates wget
+fi
 
 # Install Docker if not present
 if ! command -v docker &> /dev/null; then
     curl -fsSL https://get.docker.com -o get-docker.sh
-    sh get-docker.sh
-    rm get-docker.sh
+    sh get-docker.sh || echo "Docker install script failed. Please install docker manually."
+    rm -f get-docker.sh
+    systemctl enable docker || true
+    systemctl start docker || true
 fi
 
 # Install docker-compose if not present
@@ -34,12 +53,19 @@ if ! command -v docker-compose &> /dev/null; then
     chmod +x /usr/local/bin/docker-compose
 fi
 
-# Install Caddy natively using official repo
+# Install Caddy
+echo "[2/4] Installing Caddy Reverse Proxy for $DOMAIN..."
 if ! command -v caddy &> /dev/null; then
-    curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
-    curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | tee /etc/apt/sources.list.d/caddy-stable.list
-    apt-get update -y
-    apt-get install caddy -y
+    if [ "$PKG_MGR" = "apt-get" ]; then
+        curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg || true
+        curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | tee /etc/apt/sources.list.d/caddy-stable.list
+        $PKG_MGR update -y
+        $PKG_MGR install caddy -y
+    else
+        $PKG_MGR install yum-plugin-copr 'dnf-command(copr)' -y || true
+        $PKG_MGR copr enable @caddy/caddy -y || true
+        $PKG_MGR install caddy -y
+    fi
 fi
 
 echo "[2/4] Setting up Caddy Reverse Proxy & SSL for $DOMAIN..."
