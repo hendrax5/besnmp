@@ -21,6 +21,14 @@ func setCollectionAuthSettings(app core.App) error {
 		return err
 	}
 
+	systemscollection, _ := app.FindCollectionByNameOrId("systems")
+	if systemscollection != nil {
+		if systemscollection.Fields.GetByName("snmp_targets") == nil {
+			systemscollection.Fields.Add(&core.TextField{Name: "snmp_targets"})
+			app.Save(systemscollection)
+		}
+	}
+
 	// disable email auth if DISABLE_PASSWORD_AUTH env var is set
 	disablePasswordAuth, _ := GetEnv("DISABLE_PASSWORD_AUTH")
 	usersCollection.PasswordAuth.Enabled = disablePasswordAuth != "true"
