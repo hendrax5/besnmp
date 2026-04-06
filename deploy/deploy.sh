@@ -83,9 +83,17 @@ echo "[3/4] Building and starting Beszel NMS Docker..."
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
 cd "$SCRIPT_DIR"
 
-docker-compose build
-docker-compose up -d
+if command -v docker-compose &> /dev/null; then
+    DOCKER_CMD="docker-compose"
+elif docker compose version &> /dev/null; then
+    DOCKER_CMD="docker compose"
+else
+    echo "Error: docker-compose command not found. Please install it manually."
+    exit 1
+fi
 
+$DOCKER_CMD build
+$DOCKER_CMD up -d
 echo "[4/4] Deployment Complete!"
 echo "Beszel Hub NMS Docker is now running in the background."
 echo "Secure Access: https://$DOMAIN"
